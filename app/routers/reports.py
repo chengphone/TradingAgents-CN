@@ -541,10 +541,10 @@ async def download_report(
             # PDF 格式下载
             from app.utils.report_exporter import report_exporter
 
-            if not report_exporter.pandoc_available:
+            if not report_exporter.pdfkit_available:
                 raise HTTPException(
                     status_code=400,
-                    detail="PDF 导出功能不可用。请安装 pandoc 和 PDF 引擎（wkhtmltopdf 或 LaTeX）"
+                    detail="PDF 导出功能不可用。请安装 wkhtmltopdf: https://wkhtmltopdf.org/downloads.html"
                 )
 
             try:

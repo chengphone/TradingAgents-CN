@@ -505,9 +505,16 @@ export const configApi = {
 
   // 获取默认模型配置
   getDefaultModels(): Promise<{ quick_analysis_model: string; deep_analysis_model: string }> {
+    const isPreferredLocalModel = (modelName?: string) =>
+      Boolean(modelName && (modelName.startsWith('qwen') || modelName.startsWith('deepseek')))
+
     return unwrapResponse(ApiClient.get<Record<string, any>>('/api/config/settings')).then(settings => ({
-      quick_analysis_model: settings.quick_analysis_model || 'qwen-turbo',
-      deep_analysis_model: settings.deep_analysis_model || 'qwen-max'
+      quick_analysis_model: isPreferredLocalModel(settings.quick_analysis_model)
+        ? settings.quick_analysis_model
+        : 'qwen3.6-plus',
+      deep_analysis_model: isPreferredLocalModel(settings.deep_analysis_model)
+        ? settings.deep_analysis_model
+        : 'DEEPSEEK-V4-PRO'
     }))
   },
 
@@ -545,7 +552,9 @@ export const configApi = {
 // 配置相关的常量
 export const CONFIG_PROVIDERS = {
   OPENAI: 'openai',
+  DASHSCOPE: 'dashscope',
   QWEN: 'qwen',
+  DEEPSEEK: 'deepseek',
   GLM: 'glm',
   GEMINI: 'gemini',
   CLAUDE: 'claude'

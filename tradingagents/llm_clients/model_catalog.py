@@ -57,6 +57,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
         "deep": [
+            ("DeepSeek V4 Pro", "deepseek-v4-pro"),
             ("DeepSeek Chat", "deepseek-chat"),
             ("DeepSeek Reasoner", "deepseek-reasoner"),
             ("Custom model ID", "custom"),
@@ -64,6 +65,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
     },
     "qwen": {
         "quick": [
+            ("Qwen 3.6 Plus - Balanced", "qwen3.6-plus"),
             ("Qwen Turbo - Fast", "qwen-turbo"),
             ("Qwen Plus - Balanced", "qwen-plus"),
             ("Custom model ID", "custom"),

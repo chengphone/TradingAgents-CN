@@ -11,6 +11,8 @@ from enum import Enum
 import warnings
 import pandas as pd
 import numpy as np
+import asyncio
+import threading
 
 # 导入日志模块
 from tradingagents.utils.logging_manager import get_logger
@@ -82,6 +84,33 @@ class DataSourceManager:
         logger.info(f"   统一缓存: {'✅ 已启用' if self.cache_enabled else '❌ 未启用'}")
         logger.info(f"   默认数据源: {self.default_source.value}")
         logger.info(f"   可用数据源: {[s.value for s in self.available_sources]}")
+
+    @staticmethod
+    def _run_async_sync(coro):
+        """Run an async provider call from sync code, including inside FastAPI's event loop."""
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(coro)
+
+        result = {}
+
+        def runner():
+            loop = asyncio.new_event_loop()
+            try:
+                asyncio.set_event_loop(loop)
+                result["value"] = loop.run_until_complete(coro)
+            except Exception as exc:
+                result["error"] = exc
+            finally:
+                loop.close()
+
+        thread = threading.Thread(target=runner, daemon=True)
+        thread.start()
+        thread.join()
+        if "error" in result:
+            raise result["error"]
+        return result.get("value")
 
     def _check_mongodb_enabled(self) -> bool:
         """检查是否启用MongoDB缓存"""
@@ -1118,9 +1147,11 @@ class DataSourceManager:
                               })
 
                 # 数据质量异常时也尝试降级到其他数据源
-                fallback_result = self._try_fallback_sources(symbol, start_date, end_date)
+                fallback_result, fallback_source = self._try_fallback_sources(symbol, start_date, end_date, period)
                 if fallback_result and "❌" not in fallback_result and "错误" not in fallback_result:
                     logger.info(f"✅ [数据来源: 备用数据源] 降级成功获取数据: {symbol}")
+                    if fallback_source:
+                        logger.info(f"✅ [数据来源: {fallback_source}] 备用数据源实际命中: {symbol}")
                     return fallback_result
                 else:
                     logger.error(f"❌ [数据来源: 所有数据源失败] 所有数据源都无法获取有效数据: {symbol}")
@@ -1211,7 +1242,7 @@ class DataSourceManager:
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
 
-                    stock_info = loop.run_until_complete(provider.get_stock_basic_info(symbol))
+                    stock_info = self._run_async_sync(provider.get_stock_basic_info(symbol))
                     stock_name = stock_info.get('name', f'股票{symbol}') if stock_info else f'股票{symbol}'
                 else:
                     stock_name = f'股票{symbol}'
@@ -1239,14 +1270,14 @@ class DataSourceManager:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
-            data = loop.run_until_complete(provider.get_historical_data(symbol, start_date, end_date))
+            data = self._run_async_sync(provider.get_historical_data(symbol, start_date, end_date))
 
             if data is not None and not data.empty:
                 # 保存到缓存
                 self._save_to_cache(symbol, data, start_date, end_date)
 
                 # 获取股票基本信息（异步）
-                stock_info = loop.run_until_complete(provider.get_stock_basic_info(symbol))
+                stock_info = self._run_async_sync(provider.get_stock_basic_info(symbol))
                 stock_name = stock_info.get('name', f'股票{symbol}') if stock_info else f'股票{symbol}'
 
                 # 格式化返回
@@ -1294,14 +1325,14 @@ class DataSourceManager:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
-            data = loop.run_until_complete(provider.get_historical_data(symbol, start_date, end_date, period))
+            data = self._run_async_sync(provider.get_historical_data(symbol, start_date, end_date, period))
 
             duration = time.time() - start_time
 
             if data is not None and not data.empty:
                 # 🔧 修复：使用统一的格式化方法，包含技术指标计算
                 # 获取股票基本信息
-                stock_info = loop.run_until_complete(provider.get_stock_basic_info(symbol))
+                stock_info = self._run_async_sync(provider.get_stock_basic_info(symbol))
                 stock_name = stock_info.get('name', f'股票{symbol}') if stock_info else f'股票{symbol}'
 
                 # 调用统一的格式化方法（包含技术指标计算）
@@ -1338,12 +1369,12 @@ class DataSourceManager:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
-        data = loop.run_until_complete(provider.get_historical_data(symbol, start_date, end_date, period))
+        data = self._run_async_sync(provider.get_historical_data(symbol, start_date, end_date, period))
 
         if data is not None and not data.empty:
             # 🔧 修复：使用统一的格式化方法，包含技术指标计算
             # 获取股票基本信息
-            stock_info = loop.run_until_complete(provider.get_stock_basic_info(symbol))
+            stock_info = self._run_async_sync(provider.get_stock_basic_info(symbol))
             stock_name = stock_info.get('name', f'股票{symbol}') if stock_info else f'股票{symbol}'
 
             # 调用统一的格式化方法（包含技术指标计算）

@@ -123,11 +123,24 @@ def get_provider_and_url_by_model_sync(model_name: str) -> dict:
         if doc and "llm_configs" in doc:
             llm_configs = doc["llm_configs"]
 
+            # 先精确匹配，再大小写不敏感匹配（防御大小写不一致）
+            matched_config = None
             for config_dict in llm_configs:
                 if config_dict.get("model_name") == model_name:
-                    provider = config_dict.get("provider")
-                    api_base = config_dict.get("api_base")
-                    model_api_key = config_dict.get("api_key")  # 🔥 获取模型配置的 API Key
+                    matched_config = config_dict
+                    break
+            if matched_config is None:
+                model_lower = model_name.lower()
+                for config_dict in llm_configs:
+                    if config_dict.get("model_name", "").lower() == model_lower:
+                        matched_config = config_dict
+                        logger.info(f"🔧 [同步查询] 大小写不敏感匹配: {model_name} -> {config_dict.get('model_name')}")
+                        break
+
+            if matched_config:
+                    provider = matched_config.get("provider")
+                    api_base = matched_config.get("api_base")
+                    model_api_key = matched_config.get("api_key")  # 🔥 获取模型配置的 API Key
 
                     # 从 llm_providers 集合中查找厂家配置
                     providers_collection = db.llm_providers
@@ -342,6 +355,16 @@ def _get_default_provider_by_model(model_name: str) -> str:
     这是一个后备方案，当数据库查询失败时使用
     """
     # 模型名称到供应商的默认映射
+    normalized_model_name = (model_name or "").lower()
+
+    if normalized_model_name.startswith("deepseek") or normalized_model_name.startswith("deepseek-"):
+        logger.info(f"🔧 使用 DeepSeek 前缀映射: {model_name} -> deepseek")
+        return "deepseek"
+
+    if normalized_model_name.startswith("qwen"):
+        logger.info(f"🔧 使用 Qwen 前缀映射: {model_name} -> qwen")
+        return "qwen"
+
     model_provider_map = {
         # 阿里百炼 (DashScope)
         'qwen-turbo': 'qwen',
@@ -365,6 +388,7 @@ def _get_default_provider_by_model(model_name: str) -> str:
         # DeepSeek
         'deepseek-chat': 'deepseek',
         'deepseek-coder': 'deepseek',
+        'DEEPSEEK-V4-PRO': 'deepseek',
 
         # 智谱AI
         'glm-4': 'glm',

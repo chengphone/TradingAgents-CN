@@ -101,6 +101,14 @@ DEFAULT_MODEL_CAPABILITIES: Dict[str, Dict[str, Any]] = {
         "performance_metrics": {"speed": 5, "cost": 5, "quality": 3},
         "description": "通义千问轻量版，快速响应，适合数据收集"
     },
+    "qwen3.6-plus": {
+        "capability_level": 4,
+        "suitable_roles": [ModelRole.QUICK_ANALYSIS, ModelRole.BOTH],
+        "features": [ModelFeature.TOOL_CALLING, ModelFeature.LONG_CONTEXT, ModelFeature.FAST_RESPONSE],
+        "recommended_depths": ["快速", "基础", "标准", "深度"],
+        "performance_metrics": {"speed": 4, "cost": 3, "quality": 4},
+        "description": "Qwen 3.6 Plus"
+    },
     "qwen-plus": {
         "capability_level": 2,
         "suitable_roles": [ModelRole.BOTH],
@@ -185,6 +193,14 @@ DEFAULT_MODEL_CAPABILITIES: Dict[str, Dict[str, Any]] = {
     },
     
     # ==================== DeepSeek ====================
+    "DEEPSEEK-V4-PRO": {
+        "capability_level": 5,
+        "suitable_roles": [ModelRole.DEEP_ANALYSIS, ModelRole.BOTH],
+        "features": [ModelFeature.TOOL_CALLING, ModelFeature.LONG_CONTEXT, ModelFeature.REASONING],
+        "recommended_depths": ["标准", "深度", "全面"],
+        "performance_metrics": {"speed": 3, "cost": 3, "quality": 5},
+        "description": "DeepSeek V4 Pro"
+    },
     "deepseek-chat": {
         "capability_level": 3,
         "suitable_roles": [ModelRole.BOTH],
@@ -464,4 +480,3 @@ def parse_aggregator_model(model_name: str) -> Tuple[str, str]:
         parts = model_name.split("/", 1)
         return parts[0], parts[1]
     return "", model_name
-

@@ -458,7 +458,7 @@ class AnalysisService:
             # 填充分析参数中的模型（若请求未显式提供）
             params = request.parameters or AnalysisParameters()
             if not getattr(params, 'quick_analysis_model', None):
-                params.quick_analysis_model = effective_settings.get("quick_analysis_model", "qwen-turbo")
+                params.quick_analysis_model = effective_settings.get("quick_analysis_model", "qwen3.6-plus")
             if not getattr(params, 'deep_analysis_model', None):
                 params.deep_analysis_model = effective_settings.get("deep_analysis_model", "qwen-max")
 
@@ -536,7 +536,7 @@ class AnalysisService:
 
             params = request.parameters or AnalysisParameters()
             if not getattr(params, 'quick_analysis_model', None):
-                params.quick_analysis_model = effective_settings.get("quick_analysis_model", "qwen-turbo")
+                params.quick_analysis_model = effective_settings.get("quick_analysis_model", "qwen3.6-plus")
             if not getattr(params, 'deep_analysis_model', None):
                 params.deep_analysis_model = effective_settings.get("deep_analysis_model", "qwen-max")
 

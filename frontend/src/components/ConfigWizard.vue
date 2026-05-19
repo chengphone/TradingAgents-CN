@@ -381,9 +381,9 @@ const wizardData = ref<WizardData>({
     port: 6379
   },
   llm: {
-    provider: '',
+    provider: 'dashscope',
     apiKey: '',
-    modelName: ''
+    modelName: 'qwen3.6-plus'
   },
   datasource: {
     type: 'akshare',
@@ -397,12 +397,15 @@ const availableModels = computed(() => {
   const provider = wizardData.value.llm.provider
   const models: Record<string, Array<{ label: string; value: string }>> = {
     deepseek: [
+      { label: 'DEEPSEEK-V4-PRO', value: 'DEEPSEEK-V4-PRO' },
       { label: 'deepseek-chat', value: 'deepseek-chat' },
       { label: 'deepseek-coder', value: 'deepseek-coder' }
     ],
     dashscope: [
+      { label: 'qwen3.6-plus', value: 'qwen3.6-plus' },
       { label: 'qwen-turbo', value: 'qwen-turbo' },
       { label: 'qwen-plus', value: 'qwen-plus' },
+      { label: 'qwen3-max', value: 'qwen3-max' },
       { label: 'qwen-max', value: 'qwen-max' }
     ],
     openai: [

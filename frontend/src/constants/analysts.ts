@@ -83,6 +83,7 @@ export const convertAnalystIdsToNames = (ids: string[]): string[] => {
 export const MODEL_TO_PROVIDER_MAP: Record<string, string> = {
   // 阿里百炼 (DashScope)
   'qwen-turbo': 'dashscope',
+  'qwen3.6-plus': 'dashscope',
   'qwen-plus': 'dashscope',
   'qwen-max': 'dashscope',
   'qwen-plus-latest': 'dashscope',
@@ -101,6 +102,7 @@ export const MODEL_TO_PROVIDER_MAP: Record<string, string> = {
   'gemini-2.0-flash-thinking-exp': 'google',
 
   // DeepSeek
+  'DEEPSEEK-V4-PRO': 'deepseek',
   'deepseek-chat': 'deepseek',
   'deepseek-coder': 'deepseek',
 
