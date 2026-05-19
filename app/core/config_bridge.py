@@ -454,6 +454,23 @@ def _bridge_system_settings() -> int:
             logger.debug(f"  ✓ 桥接 CURRENCY_PREFERENCE: {system_settings['currency_preference']}")
             bridged_count += 1
 
+        # 保险：用数据库中的模型配置强制覆盖 TRADINGAGENTS_QUICK_MODEL / TRADINGAGENTS_DEEP_MODEL
+        # 即使 bridge_config_to_env() 前面从 unified_config 读到了旧缓存值，
+        # 这里用数据库里的最新值覆盖，确保运行时环境始终使用新配置
+        for db_key, env_key in [
+            ('quick_analysis_model', 'TRADINGAGENTS_QUICK_MODEL'),
+            ('deep_analysis_model', 'TRADINGAGENTS_DEEP_MODEL'),
+        ]:
+            if db_key in system_settings and system_settings[db_key]:
+                old_value = os.environ.get(env_key)
+                new_value = system_settings[db_key]
+                os.environ[env_key] = new_value
+                if old_value and old_value != new_value:
+                    logger.info(f"  🔒 保险覆盖 {env_key}: {old_value} → {new_value}")
+                else:
+                    logger.info(f"  🔒 保险设置 {env_key}: {new_value}")
+                bridged_count += 1
+
         if bridged_count > 0:
             logger.info(f"  ✓ 桥接系统运行时配置: {bridged_count} 项")
 
