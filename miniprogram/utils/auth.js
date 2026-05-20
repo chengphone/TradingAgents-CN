@@ -50,11 +50,13 @@ function login() {
           method: 'POST',
           data: { code: loginRes.code },
           success: (res) => {
-            if (res.statusCode === 200 && res.data && res.data.token) {
-              saveToken(res.data.token)
-              resolve(res.data.token)
+            // 修复：后端返回结构为 { success: true, data: { token, openid, daily_quota } }
+            const token = res.data?.data?.token
+            if (res.statusCode === 200 && token) {
+              saveToken(token)
+              resolve(token)
             } else {
-              reject(new Error(res.data?.detail || '登录失败'))
+              reject(new Error(res.data?.detail || res.data?.message || '登录失败'))
             }
           },
           fail: reject

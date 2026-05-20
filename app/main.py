@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 import uvicorn
 import logging
 import time
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -31,6 +32,37 @@ def get_version() -> str:
     return "1.0.0-mini"
 
 
+def validate_production_secrets() -> None:
+    """生产环境密钥校验
+
+    在生产环境中，必须设置安全的密钥和必要的配置，
+    否则应用将拒绝启动以防止安全风险。
+    """
+    if settings.is_production:
+        weak_secrets = {"", "change-me-in-production", "change-me-csrf-secret"}
+
+        # JWT 密钥校验
+        if settings.JWT_SECRET in weak_secrets:
+            raise RuntimeError(
+                "生产环境必须设置安全的 JWT_SECRET，"
+                "当前使用的是默认弱密钥，请在 .env 中配置 JWT_SECRET"
+            )
+
+        # 微信小程序配置校验
+        if not settings.WECHAT_APPID or not settings.WECHAT_SECRET:
+            raise RuntimeError(
+                "生产环境必须设置 WECHAT_APPID 和 WECHAT_SECRET，"
+                "请在 .env 中配置微信小程序相关参数"
+            )
+
+        # CloudBase 配置校验
+        if not os.getenv("CLOUDBASE_ENV_ID") or not os.getenv("CLOUDBASE_API_TOKEN"):
+            raise RuntimeError(
+                "生产环境必须设置 CloudBase 配置，"
+                "请在 .env 中配置 CLOUDBASE_ENV_ID 和 CLOUDBASE_API_TOKEN"
+            )
+
+
 async def _print_config_summary(logger):
     logger.info("=" * 60)
     logger.info("TradingAgents-CN 微信小程序版 启动中")
@@ -45,6 +77,9 @@ async def _print_config_summary(logger):
 async def lifespan(app: FastAPI):
     setup_logging()
     logger = logging.getLogger("app.main")
+
+    # 生产环境密钥校验
+    validate_production_secrets()
 
     await init_db()
 
@@ -73,10 +108,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+# CORS - 使用配置中的 ALLOWED_ORIGINS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],

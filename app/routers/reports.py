@@ -83,15 +83,19 @@ async def get_report_detail(
     report_id: str,
     user: dict = Depends(get_current_user_wechat),
 ):
-    """获取报告详情"""
+    """获取报告详情（增加用户权限过滤）"""
     try:
+        openid = user["openid"]
         db = get_mongo_db()
         doc = await db["analysis_reports"].find_one({
-            "$or": [{"analysis_id": report_id}, {"task_id": report_id}]
+            "$and": [
+                {"$or": [{"analysis_id": report_id}, {"task_id": report_id}]},
+                {"$or": [{"openid": openid}, {"user_id": openid}, {"user": openid}]}
+            ]
         })
 
         if not doc:
-            raise HTTPException(status_code=404, detail="报告不存在")
+            raise HTTPException(status_code=404, detail="报告不存在或无权访问")
 
         return {
             "success": True,
@@ -124,15 +128,19 @@ async def get_report_module(
     module: str,
     user: dict = Depends(get_current_user_wechat),
 ):
-    """获取报告特定模块内容"""
+    """获取报告特定模块内容（增加用户权限过滤）"""
     try:
+        openid = user["openid"]
         db = get_mongo_db()
         doc = await db["analysis_reports"].find_one({
-            "$or": [{"analysis_id": report_id}, {"task_id": report_id}]
+            "$and": [
+                {"$or": [{"analysis_id": report_id}, {"task_id": report_id}]},
+                {"$or": [{"openid": openid}, {"user_id": openid}, {"user": openid}]}
+            ]
         })
 
         if not doc:
-            raise HTTPException(status_code=404, detail="报告不存在")
+            raise HTTPException(status_code=404, detail="报告不存在或无权访问")
 
         reports = doc.get("reports", {})
         if module not in reports:

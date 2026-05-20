@@ -115,26 +115,106 @@ class CloudBaseCollection:
             doc_id = inserted_ids[0]
         return InsertOneResult(inserted_id=doc_id)
 
-    async def update_one(self, query: dict, update: dict) -> "UpdateResult":
-        """更新单个文档。先查后改（云数据库按 _id 更新）"""
+    async def update_one(self, query: dict, update: dict, upsert: bool = False) -> "UpdateResult":
+        """更新单个文档，支持 upsert 和 MongoDB 更新操作符
+
+        Args:
+            query: 查询条件
+            update: 更新操作，支持 $set, $setOnInsert, $inc, $unset
+            upsert: 如果文档不存在是否插入新文档
+        """
         doc = await self.find_one(query)
-        if not doc:
-            return UpdateResult(matched_count=0, modified_count=0)
 
-        doc_id = doc["_id"]
-        set_data = update.get("$set", {})
-        unset_data = update.get("$unset", {})
-        inc_data = update.get("$inc", {})
+        if doc:
+            doc_id = doc["_id"]
+            patch_data = {}
 
-        patch_data = {**set_data}
-        for key in unset_data:
-            patch_data[key] = None
+            # 处理 $set
+            if "$set" in update:
+                patch_data.update(update["$set"])
 
-        url = f"{self._client._db_url}/{self.name}/documents/{doc_id}"
-        body = {"data": patch_data}
-        await self._client._request("PATCH", url, json=body)
+            # 处理 $inc - 对现有文档的数值字段进行增量操作
+            if "$inc" in update:
+                for key, delta in update["$inc"].items():
+                    current_val = doc.get(key, 0)
+                    if isinstance(current_val, (int, float)):
+                        patch_data[key] = current_val + delta
+                    else:
+                        patch_data[key] = delta
 
-        return UpdateResult(matched_count=1, modified_count=1)
+            # 处理 $unset
+            if "$unset" in update:
+                for key in update["$unset"]:
+                    patch_data[key] = None
+
+            url = f"{self._client._db_url}/{self.name}/documents/{doc_id}"
+            body = {"data": patch_data}
+            await self._client._request("PATCH", url, json=body)
+
+            return UpdateResult(matched_count=1, modified_count=1)
+
+        # 文档不存在时的处理
+        if upsert:
+            # 构造新文档：先从查询条件提取字段，再应用更新操作符
+            insert_doc = {}
+            insert_doc.update(query)
+
+            # $setOnInsert 仅在插入时应用
+            if "$setOnInsert" in update:
+                insert_doc.update(update["$setOnInsert"])
+
+            # $set 在插入时也应用
+            if "$set" in update:
+                insert_doc.update(update["$set"])
+
+            # 插入新文档
+            result = await self.insert_one(insert_doc)
+            return UpdateResult(matched_count=0, modified_count=1, upserted_id=result.inserted_id)
+
+        return UpdateResult(matched_count=0, modified_count=0)
+
+    async def update_many(self, query: dict, update: dict) -> "UpdateResult":
+        """更新多个文档（先查后逐个更新）
+
+        注意：CloudBase API 不支持批量更新，需要逐个处理
+        """
+        matched_count = 0
+        modified_count = 0
+
+        # 查询所有匹配的文档
+        cursor = self.find(query)
+        docs = await cursor.to_list(1000)  # 最多处理 1000 个文档
+
+        for doc in docs:
+            doc_id = doc["_id"]
+            patch_data = {}
+
+            # 处理 $set
+            if "$set" in update:
+                patch_data.update(update["$set"])
+
+            # 处理 $inc
+            if "$inc" in update:
+                for key, delta in update["$inc"].items():
+                    current_val = doc.get(key, 0)
+                    if isinstance(current_val, (int, float)):
+                        patch_data[key] = current_val + delta
+                    else:
+                        patch_data[key] = delta
+
+            # 处理 $unset
+            if "$unset" in update:
+                for key in update["$unset"]:
+                    patch_data[key] = None
+
+            if patch_data:
+                url = f"{self._client._db_url}/{self.name}/documents/{doc_id}"
+                await self._client._request("PATCH", url, json={"data": patch_data})
+                modified_count += 1
+
+            matched_count += 1
+
+        return UpdateResult(matched_count=matched_count, modified_count=modified_count)
 
     async def delete_one(self, query: dict) -> "DeleteResult":
         """删除单个文档。先查后删"""

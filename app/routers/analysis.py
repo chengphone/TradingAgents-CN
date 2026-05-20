@@ -12,25 +12,26 @@ from app.routers.wechat_auth import get_current_user_wechat
 from app.services.simple_analysis_service import get_simple_analysis_service
 from app.core.cloudbase_client import get_mongo_db, check_and_increment_quota
 from app.core.config import settings
+from app.models.analysis import SingleAnalysisRequest
 
 router = APIRouter()
 logger = logging.getLogger("webapi")
 
 
-class SingleAnalysisRequest:
-    """单股分析请求（运行时由 pydantic 模型兼容）"""
-    pass
-
-
 @router.post("/single")
 async def submit_single_analysis(
-    request: Dict[str, Any],
+    request: SingleAnalysisRequest,
     background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user_wechat),
 ):
     """提交单股分析任务"""
     try:
         openid = user["openid"]
+
+        # 获取股票代码
+        symbol = request.get_symbol()
+        if not symbol:
+            raise HTTPException(status_code=400, detail="请提供股票代码 (symbol)")
 
         # 检查配额
         allowed, used = await check_and_increment_quota(
@@ -43,27 +44,13 @@ async def submit_single_analysis(
             )
 
         analysis_service = get_simple_analysis_service()
-
-        # 构造请求对象 - 兼容两种输入格式
-        symbol = request.get("symbol") or request.get("stock_code", "")
-        if not symbol:
-            raise HTTPException(status_code=400, detail="请提供股票代码 (symbol)")
-
-        # 使用兼容的对象格式
-        from types import SimpleNamespace
-        req = SimpleNamespace(
-            symbol=symbol,
-            stock_code=symbol,
-            parameters=request.get("parameters", {}),
-        )
-
-        result = await analysis_service.create_analysis_task(openid, req)
+        result = await analysis_service.create_analysis_task(openid, request)
         task_id = result["task_id"]
 
         async def run_analysis():
             try:
                 service = get_simple_analysis_service()
-                await service.execute_analysis_background(task_id, openid, req)
+                await service.execute_analysis_background(task_id, openid, request)
             except Exception as e:
                 logger.error(f"分析任务失败: {task_id}, {e}", exc_info=True)
 
@@ -86,17 +73,25 @@ async def get_task_status(
     task_id: str,
     user: dict = Depends(get_current_user_wechat),
 ):
-    """获取分析任务状态"""
+    """获取分析任务状态（增加用户权限过滤）"""
     try:
+        openid = user["openid"]
         analysis_service = get_simple_analysis_service()
         result = await analysis_service.get_task_status(task_id)
 
         if result:
             return {"success": True, "data": result}
 
-        # 兜底：从数据库查找
+        # 兜底：从数据库查找（增加用户过滤）
         db = get_mongo_db()
-        task = await db["analysis_tasks"].find_one({"task_id": task_id})
+        task = await db["analysis_tasks"].find_one({
+            "task_id": task_id,
+            "$or": [
+                {"openid": openid},
+                {"user_id": openid},
+                {"user": openid}
+            ]
+        })
         if task:
             from datetime import datetime
             start_time = task.get("started_at") or task.get("created_at")
@@ -117,7 +112,7 @@ async def get_task_status(
                 },
             }
 
-        raise HTTPException(status_code=404, detail="任务不存在")
+        raise HTTPException(status_code=404, detail="任务不存在或无权访问")
     except HTTPException:
         raise
     except Exception as e:
@@ -129,8 +124,9 @@ async def get_task_result(
     task_id: str,
     user: dict = Depends(get_current_user_wechat),
 ):
-    """获取分析任务结果"""
+    """获取分析任务结果（增加用户权限过滤）"""
     try:
+        openid = user["openid"]
         analysis_service = get_simple_analysis_service()
         task_status = await analysis_service.get_task_status(task_id)
 
@@ -141,10 +137,18 @@ async def get_task_result(
 
         if not result_data:
             db = get_mongo_db()
-            result_data = await db["analysis_reports"].find_one({"task_id": task_id})
+            # 增加用户过滤
+            result_data = await db["analysis_reports"].find_one({
+                "task_id": task_id,
+                "$or": [
+                    {"openid": openid},
+                    {"user_id": openid},
+                    {"user": openid}
+                ]
+            })
 
         if not result_data:
-            raise HTTPException(status_code=404, detail="分析结果不存在")
+            raise HTTPException(status_code=404, detail="分析结果不存在或无权访问")
 
         return {
             "success": True,
