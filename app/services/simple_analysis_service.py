@@ -483,6 +483,7 @@ class SimpleAnalysisService:
 
     def __init__(self):
         self._trading_graph_cache = {}
+        self._stock_name_cache: Dict[str, str] = {}
         self.memory_manager = get_memory_state_manager()
 
         # 进度跟踪器缓存

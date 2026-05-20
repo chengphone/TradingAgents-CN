@@ -65,7 +65,9 @@ class WechatService:
 
     def create_token(self, openid: str) -> str:
         """签发 JWT token"""
-        expire = datetime.now(timezone.utc) + timedelta(hours=24)
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
         payload = {
             "sub": openid,
             "type": "wechat_miniprogram",

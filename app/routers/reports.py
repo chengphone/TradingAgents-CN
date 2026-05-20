@@ -48,7 +48,7 @@ async def get_reports_list(
             db["analysis_reports"]
             .find(query)
             .sort("created_at", -1)
-            .limit(page_size)
+            .limit(skip + page_size)
         )
         # 手动 skip（CloudBase API 不直接支持 offset）
         # 使用简单的 skip 逻辑

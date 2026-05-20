@@ -148,7 +148,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(wechat_auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
-app.include_router(reports.router, tags=["reports"])
+app.include_router(reports.router, prefix="/api", tags=["reports"])
 app.include_router(config_router.router, prefix="/api", tags=["config"])
 app.include_router(system_config_router.router, prefix="/api/system", tags=["system"])
 

@@ -22,7 +22,7 @@ class CloudBaseConfig:
 
     @property
     def api_token(self) -> str:
-        return os.getenv("CLOUDBASE_API_TOKEN", "")
+        return os.getenv("CLOUDBASE_API_TOKEN", "") or os.getenv("CLOUDBASE_API_KEY", "")
 
     @property
     def base_url(self) -> str:

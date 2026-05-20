@@ -42,12 +42,12 @@ App({
   async loadUserInfo() {
     try {
       const api = require('./utils/api.js').api
-      const res = await api.get('/auth/me')
+      const res = await api.get('/api/auth/me')
       if (res.success) {
         this.globalData.userInfo = res.data
         this.globalData.openid = res.data.openid
         this.globalData.dailyQuota = {
-          used: res.data.analysis_count || 0,
+          used: res.data.daily_used || 0,
           total: res.data.daily_quota || 10
         }
       }

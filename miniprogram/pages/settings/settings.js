@@ -18,7 +18,7 @@ Page({
 
   async loadUserInfo() {
     try {
-      const res = await api.get('/auth/me')
+      const res = await api.get('/api/auth/me')
       if (res.success && res.data) {
         this.setData({
           openid: res.data.openid ? res.data.openid.substring(0, 12) + '...' : '未知'

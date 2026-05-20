@@ -1,7 +1,6 @@
 /**
  * 微信静默登录 + Token 管理
  */
-const { api } = require('./api.js')
 
 const TOKEN_KEY = 'auth_token'
 const API_BASE = 'https://your-env-id.api.tcloudbasegateway.com' // 云托管地址
