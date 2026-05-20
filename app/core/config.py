@@ -119,6 +119,11 @@ class Settings(BaseSettings):
         else:
             return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
+    # 微信小程序配置
+    WECHAT_APPID: str = Field(default="", description="微信小程序 AppID")
+    WECHAT_SECRET: str = Field(default="", description="微信小程序 AppSecret")
+    WECHAT_DAILY_QUOTA: int = Field(default=10, description="每日分析配额")
+
     # JWT配置
     JWT_SECRET: str = Field(default="change-me-in-production")
     JWT_ALGORITHM: str = Field(default="HS256")

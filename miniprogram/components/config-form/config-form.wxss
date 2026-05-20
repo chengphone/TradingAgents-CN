@@ -1,0 +1,7 @@
+.config-item { background: var(--bg-input); border-radius: 12rpx; padding: 20rpx; margin-bottom: 16rpx; }
+.config-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12rpx; }
+.config-provider { font-size: 28rpx; font-weight: 600; }
+.config-field { margin-bottom: 12rpx; }
+.field-label { font-size: 24rpx; color: #888; display: block; margin-bottom: 6rpx; }
+.field-input { width: 100%; box-sizing: border-box; }
+.add-btn { width: 100%; margin: 16rpx 0; }

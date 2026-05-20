@@ -1,0 +1,31 @@
+<!-- 报告详情页 -->
+<view class="container">
+  <!-- 模块选择 -->
+  <view class="module-tabs" wx:if="{{!singleModule}}">
+    <scroll-view scroll-x class="tab-scroll">
+      <view
+        wx:for="{{modules}}"
+        wx:key="key"
+        class="tab-item {{currentModule === item.key ? 'tab-active' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="switchModule"
+      >
+        <text>{{item.name}}</text>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 报告内容 -->
+  <view wx:if="{{loading}}" class="loading">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view wx:elif="{{content}}" class="card">
+    <rich-text nodes="{{richNodes}}" class="rich-content"></rich-text>
+  </view>
+
+  <view wx:else class="empty">
+    <text class="empty-icon">📄</text>
+    <text class="empty-text">暂无内容</text>
+  </view>
+</view>

@@ -24,9 +24,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from app.models.analysis import (
     AnalysisTask, AnalysisStatus, SingleAnalysisRequest, AnalysisParameters
 )
-from app.models.user import PyObjectId
-from app.models.notification import NotificationCreate
-from bson import ObjectId
+
 from app.core.database import get_mongo_db
 from app.services.config_service import ConfigService
 from app.services.memory_state_manager import get_memory_state_manager, TaskStatus
@@ -99,202 +97,96 @@ def get_provider_by_model_name_sync(model_name: str) -> str:
 
 def get_provider_and_url_by_model_sync(model_name: str) -> dict:
     """
-    根据模型名称从数据库配置中查找对应的供应商和 API URL（同步版本）
+    根据模型名称从 CloudBase 配置中查找对应的供应商和 API URL（同步版本）
 
-    Args:
-        model_name: 模型名称，如 'qwen-turbo', 'gpt-4' 等
+    优先顺序: CloudBase 数据库 > 环境变量 > 硬编码默认值
 
     Returns:
         dict: {"provider": "google", "backend_url": "https://...", "api_key": "xxx"}
     """
+    def _resolve_result(provider, backend_url, api_key):
+        """统一的结果处理"""
+        from tradingagents.llm_clients.provider_keys import normalize_provider_key, default_backend_url
+        provider_key = normalize_provider_key(provider)
+        if provider_key == "qwen" and backend_url == "https://dashscope.aliyuncs.com/api/v1":
+            backend_url = default_backend_url(provider_key)
+        return {"provider": provider_key, "backend_url": backend_url, "api_key": api_key}
+
     try:
-        # 使用同步 MongoDB 客户端直接查询
-        from pymongo import MongoClient
-        from app.core.config import settings
-        import os
+        from app.core.cloudbase_client import get_sync_cloudbase
+        cdb = get_sync_cloudbase()
 
-        client = MongoClient(settings.MONGO_URI)
-        db = client[settings.MONGO_DB]
+        if cdb:
+            # 从 CloudBase system_configs 读取 LLM 配置
+            doc = cdb.find_one("system_configs", {"is_active": True}, sort=[("version", -1)])
 
-        # 查询最新的活跃配置
-        configs_collection = db.system_configs
-        doc = configs_collection.find_one({"is_active": True}, sort=[("version", -1)])
+            if doc and "llm_configs" in doc:
+                llm_configs = doc["llm_configs"]
 
-        if doc and "llm_configs" in doc:
-            llm_configs = doc["llm_configs"]
-
-            # 先精确匹配，再大小写不敏感匹配（防御大小写不一致）
-            matched_config = None
-            for config_dict in llm_configs:
-                if config_dict.get("model_name") == model_name:
-                    matched_config = config_dict
-                    break
-            if matched_config is None:
-                model_lower = model_name.lower()
+                matched_config = None
                 for config_dict in llm_configs:
-                    if config_dict.get("model_name", "").lower() == model_lower:
+                    if config_dict.get("model_name") == model_name:
                         matched_config = config_dict
-                        logger.info(f"🔧 [同步查询] 大小写不敏感匹配: {model_name} -> {config_dict.get('model_name')}")
                         break
+                if matched_config is None:
+                    model_lower = model_name.lower()
+                    for config_dict in llm_configs:
+                        if config_dict.get("model_name", "").lower() == model_lower:
+                            matched_config = config_dict
+                            break
 
-            if matched_config:
+                if matched_config:
                     provider = matched_config.get("provider")
                     api_base = matched_config.get("api_base")
-                    model_api_key = matched_config.get("api_key")  # 🔥 获取模型配置的 API Key
+                    model_api_key = matched_config.get("api_key")
 
-                    # 从 llm_providers 集合中查找厂家配置
-                    providers_collection = db.llm_providers
-                    provider_doc = providers_collection.find_one({"name": provider})
+                    # 从 llm_providers 查找厂家配置
+                    provider_doc = cdb.find_one("llm_providers", {"name": provider})
 
-                    # 🔥 确定 API Key（优先级：模型配置 > 厂家配置 > 环境变量）
+                    # API Key 优先级: 模型配置 > 厂家配置 > 环境变量
                     api_key = None
                     if model_api_key and model_api_key.strip() and model_api_key != "your-api-key":
                         api_key = model_api_key
-                        logger.info(f"✅ [同步查询] 使用模型配置的 API Key")
                     elif provider_doc and provider_doc.get("api_key"):
-                        provider_api_key = provider_doc["api_key"]
-                        if provider_api_key and provider_api_key.strip() and provider_api_key != "your-api-key":
-                            api_key = provider_api_key
-                            logger.info(f"✅ [同步查询] 使用厂家配置的 API Key")
-
-                    # 如果数据库中没有有效的 API Key，尝试从环境变量获取
+                        pk = provider_doc["api_key"]
+                        if pk and pk.strip() and pk != "your-api-key":
+                            api_key = pk
                     if not api_key:
                         api_key = _get_env_api_key_for_provider(provider)
-                        if api_key:
-                            logger.info(f"✅ [同步查询] 使用环境变量的 API Key")
-                        else:
-                            logger.warning(f"⚠️ [同步查询] 未找到 {provider} 的 API Key")
 
-                    # 确定 backend_url
+                    # Backend URL 优先级: 模型 api_base > 厂家 default_base_url > 硬编码
                     backend_url = None
                     if api_base:
                         backend_url = api_base
-                        logger.info(f"✅ [同步查询] 模型 {model_name} 使用自定义 API: {api_base}")
                     elif provider_doc and provider_doc.get("default_base_url"):
                         backend_url = provider_doc["default_base_url"]
-                        logger.info(f"✅ [同步查询] 模型 {model_name} 使用厂家默认 API: {backend_url}")
                     else:
                         backend_url = _get_default_backend_url(provider)
-                        logger.warning(f"⚠️ [同步查询] 厂家 {provider} 没有配置 default_base_url，使用硬编码默认值")
 
-                    from tradingagents.llm_clients.provider_keys import normalize_provider_key, default_backend_url
+                    return _resolve_result(provider, backend_url, api_key)
 
-                    provider_key = normalize_provider_key(provider)
-                    if provider_key == "qwen" and backend_url == "https://dashscope.aliyuncs.com/api/v1":
-                        backend_url = default_backend_url(provider_key)
-
-                    client.close()
-                    return {
-                        "provider": provider_key,
-                        "backend_url": backend_url,
-                        "api_key": api_key
-                    }
-
-        client.close()
-
-        # 如果数据库中没有找到模型配置，使用默认映射
-        logger.warning(f"⚠️ [同步查询] 数据库中未找到模型 {model_name}，使用默认映射")
+        # 未在 CloudBase 中找到，使用默认映射
         provider = _get_default_provider_by_model(model_name)
+        backend_url = _get_default_backend_url(provider)
+        api_key = _get_env_api_key_for_provider(provider)
 
-        # 尝试从厂家配置中获取 default_base_url 和 API Key
-        try:
-            client = MongoClient(settings.MONGO_URI)
-            db = client[settings.MONGO_DB]
-            providers_collection = db.llm_providers
-            provider_doc = providers_collection.find_one({"name": provider})
-
-            backend_url = _get_default_backend_url(provider)
-            api_key = None
-
+        # 尝试从 CloudBase llm_providers 获取更完整的配置
+        if cdb:
+            provider_doc = cdb.find_one("llm_providers", {"name": provider})
             if provider_doc:
                 if provider_doc.get("default_base_url"):
                     backend_url = provider_doc["default_base_url"]
-                    logger.info(f"✅ [同步查询] 使用厂家 {provider} 的 default_base_url: {backend_url}")
-
                 if provider_doc.get("api_key"):
-                    provider_api_key = provider_doc["api_key"]
-                    if provider_api_key and provider_api_key.strip() and provider_api_key != "your-api-key":
-                        api_key = provider_api_key
-                        logger.info(f"✅ [同步查询] 使用厂家 {provider} 的 API Key")
+                    pk = provider_doc["api_key"]
+                    if pk and pk.strip() and pk != "your-api-key":
+                        api_key = pk
 
-            # 如果厂家配置中没有 API Key，尝试从环境变量获取
-            if not api_key:
-                api_key = _get_env_api_key_for_provider(provider)
-                if api_key:
-                    logger.info(f"✅ [同步查询] 使用环境变量的 API Key")
-
-            from tradingagents.llm_clients.provider_keys import normalize_provider_key, default_backend_url
-
-            provider_key = normalize_provider_key(provider)
-            if provider_key == "qwen" and backend_url == "https://dashscope.aliyuncs.com/api/v1":
-                backend_url = default_backend_url(provider_key)
-
-            client.close()
-            return {
-                "provider": provider_key,
-                "backend_url": backend_url,
-                "api_key": api_key
-            }
-        except Exception as e:
-            logger.warning(f"⚠️ [同步查询] 无法查询厂家配置: {e}")
-
-        # 最后回退到硬编码的默认 URL 和环境变量 API Key
-        from tradingagents.llm_clients.provider_keys import normalize_provider_key
-
-        provider_key = normalize_provider_key(provider)
-        return {
-            "provider": provider_key,
-            "backend_url": _get_default_backend_url(provider_key),
-            "api_key": _get_env_api_key_for_provider(provider_key)
-        }
+        return _resolve_result(provider, backend_url, api_key)
 
     except Exception as e:
         logger.error(f"❌ [同步查询] 查找模型供应商失败: {e}")
         provider = _get_default_provider_by_model(model_name)
-
-        # 尝试从厂家配置中获取 default_base_url 和 API Key
-        try:
-            from pymongo import MongoClient
-            from app.core.config import settings
-
-            client = MongoClient(settings.MONGO_URI)
-            db = client[settings.MONGO_DB]
-            providers_collection = db.llm_providers
-            provider_doc = providers_collection.find_one({"name": provider})
-
-            backend_url = _get_default_backend_url(provider)
-            api_key = None
-
-            if provider_doc:
-                if provider_doc.get("default_base_url"):
-                    backend_url = provider_doc["default_base_url"]
-                    logger.info(f"✅ [同步查询] 使用厂家 {provider} 的 default_base_url: {backend_url}")
-
-                if provider_doc.get("api_key"):
-                    provider_api_key = provider_doc["api_key"]
-                    if provider_api_key and provider_api_key.strip() and provider_api_key != "your-api-key":
-                        api_key = provider_api_key
-                        logger.info(f"✅ [同步查询] 使用厂家 {provider} 的 API Key")
-
-            # 如果厂家配置中没有 API Key，尝试从环境变量获取
-            if not api_key:
-                api_key = _get_env_api_key_for_provider(provider)
-
-            client.close()
-            return {
-                "provider": provider,
-                "backend_url": backend_url,
-                "api_key": api_key
-            }
-        except Exception as e2:
-            logger.warning(f"⚠️ [同步查询] 无法查询厂家配置: {e2}")
-
-        # 最后回退到硬编码的默认 URL 和环境变量 API Key
-        return {
-            "provider": provider,
-            "backend_url": _get_default_backend_url(provider),
-            "api_key": _get_env_api_key_for_provider(provider)
-        }
+        return _resolve_result(provider, _get_default_backend_url(provider), _get_env_api_key_for_provider(provider))
 
 
 def _get_env_api_key_for_provider(provider: str) -> str:
@@ -605,16 +497,8 @@ class SimpleAnalysisService:
         logger.info(f"🔧 [服务初始化] 内存管理器实例ID: {id(self.memory_manager)}")
         logger.info(f"🔧 [服务初始化] 线程池最大并发数: 3")
 
-        # 设置 WebSocket 管理器
-        # 简单的股票名称缓存，减少重复查询
-        self._stock_name_cache: Dict[str, str] = {}
-
-        # 设置 WebSocket 管理器
-        try:
-            from app.services.websocket_manager import get_websocket_manager
-            self.memory_manager.set_websocket_manager(get_websocket_manager())
-        except ImportError:
-            logger.warning("⚠️ WebSocket 管理器不可用")
+        # 设置 WebSocket 管理器（微信小程序版无需 WebSocket）
+        self.memory_manager.set_websocket_manager(None)
 
     async def _update_progress_async(self, task_id: str, progress: int, message: str):
         """异步更新进度（内存和MongoDB）"""
@@ -680,27 +564,9 @@ class SimpleAnalysisService:
             logger.warning(f"⚠️ 补齐股票名称时出现异常: {e}")
         return tasks
 
-    def _convert_user_id(self, user_id: str) -> PyObjectId:
-        """将字符串用户ID转换为PyObjectId"""
-        try:
-            logger.info(f"🔄 开始转换用户ID: {user_id} (类型: {type(user_id)})")
-
-            # 如果是admin用户，使用固定的ObjectId
-            if user_id == "admin":
-                admin_object_id = ObjectId("507f1f77bcf86cd799439011")
-                logger.info(f"🔄 转换admin用户ID: {user_id} -> {admin_object_id}")
-                return PyObjectId(admin_object_id)
-            else:
-                # 尝试将字符串转换为ObjectId
-                object_id = ObjectId(user_id)
-                logger.info(f"🔄 转换用户ID: {user_id} -> {object_id}")
-                return PyObjectId(object_id)
-        except Exception as e:
-            logger.error(f"❌ 用户ID转换失败: {user_id} -> {e}")
-            # 如果转换失败，生成一个新的ObjectId
-            new_object_id = ObjectId()
-            logger.warning(f"⚠️ 生成新的用户ID: {new_object_id}")
-            return PyObjectId(new_object_id)
+    def _convert_user_id(self, user_id: str) -> str:
+        """CloudBase 使用字符串 openid 作为用户标识，直接返回"""
+        return user_id
 
     def _get_trading_graph(self, config: Dict[str, Any]) -> TradingAgentsGraph:
         """获取或创建TradingAgents实例
@@ -990,23 +856,7 @@ class SimpleAnalysisService:
             # 同步更新MongoDB状态为完成
             await self._update_task_status(task_id, AnalysisStatus.COMPLETED, 100)
 
-            # 创建通知：分析完成（方案B：REST+SSE）
-            try:
-                from app.services.notifications_service import get_notifications_service
-                svc = get_notifications_service()
-                summary = str(result.get("summary", ""))[:120]
-                await svc.create_and_publish(
-                    payload=NotificationCreate(
-                        user_id=str(user_id),
-                        type='analysis',
-                        title=f"{request.stock_code} 分析完成",
-                        content=summary,
-                        link=f"/stocks/{request.stock_code}",
-                        source='analysis'
-                    )
-                )
-            except Exception as notif_err:
-                logger.warning(f"⚠️ 创建通知失败(忽略): {notif_err}")
+            # 微信小程序版：通知通过轮询 + 报告列表完成，无需独立通知服务
 
             logger.info(f"✅ 后台分析任务完成: {task_id}")
 
@@ -1131,26 +981,22 @@ class SimpleAnalysisService:
                     finally:
                         loop.close()
 
-                    # 2. 更新 MongoDB（使用同步客户端，避免事件循环冲突）
-                    from pymongo import MongoClient
-                    from app.core.config import settings
+                    # 2. 更新 CloudBase（使用同步客户端，避免事件循环冲突）
+                    from app.core.cloudbase_client import get_sync_cloudbase
                     from datetime import datetime
 
-                    sync_client = MongoClient(settings.MONGO_URI)
-                    sync_db = sync_client[settings.MONGO_DB]
-
-                    sync_db.analysis_tasks.update_one(
-                        {"task_id": task_id},
-                        {
-                            "$set": {
+                    cdb = get_sync_cloudbase()
+                    if cdb:
+                        cdb.update_one(
+                            "analysis_tasks",
+                            {"task_id": task_id},
+                            {"$set": {
                                 "progress": progress,
                                 "current_step": step,
                                 "message": message,
-                                "updated_at": datetime.utcnow()
-                            }
-                        }
-                    )
-                    sync_client.close()
+                                "updated_at": datetime.utcnow().isoformat()
+                            }}
+                        )
 
                 except Exception as e:
                     logger.warning(f"⚠️ 进度更新失败: {e}")
@@ -1437,27 +1283,21 @@ class SimpleAnalysisService:
                                     )
                                     logger.debug(f"✅ [Graph进度] 已提交异步更新任务: {int(progress_pct)}%")
                                 except RuntimeError:
-                                    # 没有运行的事件循环，使用同步方式更新 MongoDB
-                                    from pymongo import MongoClient
-                                    from app.core.config import settings
+                                    # 没有运行的事件循环，使用同步方式更新 CloudBase
+                                    from app.core.cloudbase_client import get_sync_cloudbase
 
-                                    # 创建同步 MongoDB 客户端
-                                    sync_client = MongoClient(settings.MONGO_URI)
-                                    sync_db = sync_client[settings.MONGO_DB]
-
-                                    # 同步更新 MongoDB
-                                    sync_db.analysis_tasks.update_one(
-                                        {"task_id": task_id},
-                                        {
-                                            "$set": {
+                                    cdb = get_sync_cloudbase()
+                                    if cdb:
+                                        cdb.update_one(
+                                            "analysis_tasks",
+                                            {"task_id": task_id},
+                                            {"$set": {
                                                 "progress": int(progress_pct),
                                                 "current_step": message,
                                                 "message": message,
-                                                "updated_at": datetime.utcnow()
-                                            }
-                                        }
-                                    )
-                                    sync_client.close()
+                                                "updated_at": datetime.utcnow().isoformat()
+                                            }}
+                                        )
 
                                     # 异步更新内存（创建新的事件循环）
                                     loop = asyncio.new_event_loop()
@@ -2066,28 +1906,14 @@ class SimpleAnalysisService:
             try:
                 db = get_mongo_db()
 
-                # user_id 可能是字符串或 ObjectId，做兼容
+                # user_id 为字符串（openid），做简单兼容
                 uid_candidates: List[Any] = [user_id]
 
                 # 特殊处理 admin 用户
                 if str(user_id) == 'admin':
-                    # admin 用户：添加固定的 ObjectId 和字符串形式
-                    try:
-                        from bson import ObjectId
-                        admin_oid_str = '507f1f77bcf86cd799439011'
-                        uid_candidates.append(ObjectId(admin_oid_str))
-                        uid_candidates.append(admin_oid_str)  # 兼容字符串存储
-                        logger.info(f"📋 [Tasks] admin用户查询，候选ID: ['admin', ObjectId('{admin_oid_str}'), '{admin_oid_str}']")
-                    except Exception as e:
-                        logger.warning(f"⚠️ [Tasks] admin用户ObjectId创建失败: {e}")
-                else:
-                    # 普通用户：尝试转换为 ObjectId
-                    try:
-                        from bson import ObjectId
-                        uid_candidates.append(ObjectId(user_id))
-                        logger.debug(f"📋 [Tasks] 用户ID已转换为ObjectId: {user_id}")
-                    except Exception as conv_err:
-                        logger.warning(f"⚠️ [Tasks] 用户ID转换ObjectId失败，按字符串匹配: {conv_err}")
+                    admin_oid_str = '507f1f77bcf86cd799439011'
+                    uid_candidates.append(admin_oid_str)
+                    logger.info(f"📋 [Tasks] admin用户查询，候选ID: ['admin', '{admin_oid_str}']")
 
                 # 兼容 user_id 与 user 两种字段名
                 base_condition = {"$in": uid_candidates}

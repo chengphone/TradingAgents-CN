@@ -61,44 +61,34 @@ def bridge_config_to_env():
         # 🔥 修改：从数据库的 llm_providers 集合读取厂家配置，而不是从 JSON 文件
         # 只有当环境变量不存在或为占位符时，才使用数据库中的配置
         try:
-            # 使用同步 MongoDB 客户端读取厂家配置
-            from pymongo import MongoClient
-            from app.core.config import settings
             from app.models.config import LLMProvider
+            from app.core.cloudbase_client import get_sync_cloudbase
 
-            # 创建同步 MongoDB 客户端
-            client = MongoClient(settings.MONGO_URI)
-            db = client[settings.MONGO_DB]
-            providers_collection = db.llm_providers
+            cdb = get_sync_cloudbase()
+            if cdb:
+                providers_data = cdb.find("llm_providers", sort_field="_id", sort_dir="asc", limit=200)
+                providers = [LLMProvider(**data) for data in providers_data]
+                logger.info(f"  📊 从 CloudBase 读取到 {len(providers)} 个厂家配置")
 
-            # 查询所有厂家配置
-            providers_data = list(providers_collection.find())
-            providers = [LLMProvider(**data) for data in providers_data]
+                for provider in providers:
+                    if not provider.is_active:
+                        logger.debug(f"  ⏭️  厂家 {provider.name} 未启用，跳过")
+                        continue
 
-            logger.info(f"  📊 从数据库读取到 {len(providers)} 个厂家配置")
+                    env_key = f"{provider.name.upper()}_API_KEY"
+                    existing_env_value = os.getenv(env_key)
 
-            for provider in providers:
-                if not provider.is_active:
-                    logger.debug(f"  ⏭️  厂家 {provider.name} 未启用，跳过")
-                    continue
-
-                env_key = f"{provider.name.upper()}_API_KEY"
-                existing_env_value = os.getenv(env_key)
-
-                # 检查环境变量是否已存在且有效（不是占位符）
-                if existing_env_value and not existing_env_value.startswith("your_"):
-                    logger.info(f"  ✓ 使用 .env 文件中的 {env_key} (长度: {len(existing_env_value)})")
-                    bridged_count += 1
-                elif provider.api_key and not provider.api_key.startswith("your_"):
-                    # 只有当环境变量不存在或为占位符时，才使用数据库配置
-                    os.environ[env_key] = provider.api_key
-                    logger.info(f"  ✓ 使用数据库厂家配置的 {env_key} (长度: {len(provider.api_key)})")
-                    bridged_count += 1
-                else:
-                    logger.debug(f"  ⏭️  {env_key} 未配置有效的 API Key")
-
-            # 关闭同步客户端
-            client.close()
+                    if existing_env_value and not existing_env_value.startswith("your_"):
+                        logger.info(f"  ✓ 使用 .env 文件中的 {env_key}")
+                        bridged_count += 1
+                    elif provider.api_key and not provider.api_key.startswith("your_"):
+                        os.environ[env_key] = provider.api_key
+                        logger.info(f"  ✓ 使用数据库厂家配置的 {env_key}")
+                        bridged_count += 1
+                    else:
+                        logger.debug(f"  ⏭️  {env_key} 未配置有效的 API Key")
+            else:
+                raise RuntimeError("CloudBase 未连接")
 
         except Exception as e:
             logger.error(f"❌ 从数据库读取厂家配置失败: {e}", exc_info=True)
@@ -149,32 +139,26 @@ def bridge_config_to_env():
         # 🔧 [优先级] .env 文件 > 数据库配置
         # 🔥 修改：从数据库的 system_configs 集合读取数据源配置，而不是从 JSON 文件
         try:
-            # 使用同步 MongoDB 客户端读取系统配置
-            from pymongo import MongoClient
-            from app.core.config import settings
             from app.models.config import SystemConfig
+            from app.core.cloudbase_client import get_sync_cloudbase
 
-            # 创建同步 MongoDB 客户端
-            client = MongoClient(settings.MONGO_URI)
-            db = client[settings.MONGO_DB]
-            config_collection = db.system_configs
+            cdb = get_sync_cloudbase()
+            if cdb:
+                config_data = cdb.find_one(
+                    "system_configs",
+                    {"is_active": True},
+                    sort=[("version", -1)]
+                )
 
-            # 查询最新的系统配置
-            config_data = config_collection.find_one(
-                {"is_active": True},
-                sort=[("version", -1)]
-            )
-
-            if config_data and config_data.get('data_source_configs'):
-                system_config = SystemConfig(**config_data)
-                data_source_configs = system_config.data_source_configs
-                logger.info(f"  📊 从数据库读取到 {len(data_source_configs)} 个数据源配置")
+                if config_data and config_data.get('data_source_configs'):
+                    system_config = SystemConfig(**config_data)
+                    data_source_configs = system_config.data_source_configs
+                    logger.info(f"  📊 从 CloudBase 读取到 {len(data_source_configs)} 个数据源配置")
+                else:
+                    logger.warning("  ⚠️  数据库中没有数据源配置，使用 JSON 文件配置")
+                    data_source_configs = unified_config.get_data_source_configs()
             else:
-                logger.warning("  ⚠️  数据库中没有数据源配置，使用 JSON 文件配置")
-                data_source_configs = unified_config.get_data_source_configs()
-
-            # 关闭同步客户端
-            client.close()
+                raise RuntimeError("CloudBase 未连接")
 
         except Exception as e:
             logger.error(f"❌ 从数据库读取数据源配置失败: {e}", exc_info=True)
@@ -364,21 +348,15 @@ def _bridge_system_settings() -> int:
         int: 桥接的配置项数量
     """
     try:
-        # 使用同步的 MongoDB 客户端
-        from pymongo import MongoClient
-        from app.core.config import settings
+        from app.core.cloudbase_client import get_sync_cloudbase
 
-        # 创建同步客户端
-        client = MongoClient(
-            settings.MONGO_URI,
-            serverSelectionTimeoutMS=5000,
-            connectTimeoutMS=5000
-        )
+        cdb = get_sync_cloudbase()
+        if not cdb:
+            logger.debug("  ⚠️  CloudBase 未连接，跳过系统设置桥接")
+            return 0
 
         try:
-            db = client[settings.MONGO_DB]
-            # 从 system_configs 集合中读取激活的配置
-            config_doc = db.system_configs.find_one({"is_active": True})
+            config_doc = cdb.find_one("system_configs", {"is_active": True})
 
             if not config_doc or 'system_settings' not in config_doc:
                 logger.debug("  ⚠️  系统设置为空，跳过桥接")
@@ -386,12 +364,10 @@ def _bridge_system_settings() -> int:
 
             system_settings = config_doc['system_settings']
         except Exception as e:
-            logger.debug(f"  ⚠️  无法从数据库获取系统设置: {e}")
+            logger.debug(f"  ⚠️  无法从 CloudBase 获取系统设置: {e}")
             import traceback
             logger.debug(traceback.format_exc())
             return 0
-        finally:
-            client.close()
 
         if not system_settings:
             logger.debug("  ⚠️  系统设置为空，跳过桥接")

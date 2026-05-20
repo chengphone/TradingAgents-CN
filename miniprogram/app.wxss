@@ -1,0 +1,52 @@
+/* 全局样式 - TradingAgents-CN 微信小程序 */
+
+page {
+  background-color: #0f0f23;
+  color: #e0e0e0;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+/* 主题色 */
+page { --primary: #00d4aa; --danger: #ff4757; --warning: #ffa502; --bg-dark: #0f0f23; --bg-card: #1a1a2e; --bg-input: #16213e; --text-primary: #e0e0e0; --text-secondary: #a0a0a0; --border: #2a2a4a; }
+
+/* 通用容器 */
+.container { padding: 24rpx; min-height: 100vh; }
+
+/* 卡片 */
+.card { background: var(--bg-card); border-radius: 16rpx; padding: 24rpx; margin-bottom: 24rpx; border: 1rpx solid var(--border); }
+.card-title { font-size: 32rpx; font-weight: 600; color: var(--text-primary); margin-bottom: 16rpx; }
+
+/* 按钮 */
+.btn { display: flex; align-items: center; justify-content: center; height: 80rpx; border-radius: 12rpx; font-size: 30rpx; font-weight: 500; }
+.btn-primary { background: linear-gradient(135deg, #00d4aa, #00b894); color: #000; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-outline { background: transparent; border: 2rpx solid var(--primary); color: var(--primary); }
+.btn-disabled { opacity: 0.5; pointer-events: none; }
+
+/* 输入框 */
+.input { background: var(--bg-input); border: 1rpx solid var(--border); border-radius: 12rpx; padding: 0 24rpx; height: 80rpx; color: var(--text-primary); font-size: 28rpx; }
+.input:focus { border-color: var(--primary); }
+
+/* 标签 */
+.tag { display: inline-block; padding: 4rpx 16rpx; border-radius: 8rpx; font-size: 22rpx; }
+.tag-buy { background: rgba(0,212,170,0.2); color: #00d4aa; }
+.tag-sell { background: rgba(255,71,87,0.2); color: #ff4757; }
+.tag-hold { background: rgba(255,165,2,0.2); color: #ffa502; }
+
+/* loading */
+.loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40rpx; }
+.loading-text { color: var(--text-secondary); font-size: 26rpx; margin-top: 16rpx; }
+
+/* empty */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80rpx 0; }
+.empty-icon { font-size: 80rpx; margin-bottom: 16rpx; }
+.empty-text { color: var(--text-secondary); font-size: 28rpx; }
+
+/* markdown 渲染 */
+.rich-content { line-height: 1.8; font-size: 28rpx; }
+.rich-content .h1 { font-size: 36rpx; font-weight: 700; margin: 24rpx 0 12rpx; }
+.rich-content .h2 { font-size: 32rpx; font-weight: 600; margin: 20rpx 0 10rpx; }
+.rich-content .p { margin: 8rpx 0; }
+.rich-content .strong { font-weight: 600; }

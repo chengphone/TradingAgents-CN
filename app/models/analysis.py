@@ -6,7 +6,6 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from enum import Enum
-from bson import ObjectId
 from .user import PyObjectId
 from app.utils.timezone import now_tz
 
@@ -71,10 +70,10 @@ class AnalysisResult(BaseModel):
 
 class AnalysisTask(BaseModel):
     """分析任务模型"""
-    id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    id: Optional[str] = Field(default=None, alias="_id")
     task_id: str = Field(..., description="任务唯一标识")
     batch_id: Optional[str] = None
-    user_id: PyObjectId
+    user_id: str
     symbol: str = Field(..., description="6位股票代码")
     stock_code: Optional[str] = Field(None, description="股票代码(已废弃,使用symbol)")
     stock_name: Optional[str] = None
@@ -105,9 +104,9 @@ class AnalysisTask(BaseModel):
 
 class AnalysisBatch(BaseModel):
     """分析批次模型"""
-    id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    id: Optional[str] = Field(default=None, alias="_id")
     batch_id: str = Field(..., description="批次唯一标识")
-    user_id: PyObjectId
+    user_id: str
     title: str = Field(..., description="批次标题")
     description: Optional[str] = None
     status: BatchStatus = BatchStatus.PENDING

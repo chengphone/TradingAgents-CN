@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "分析进度",
+  "usingComponents": {
+    "progress-bar": "/components/progress-bar/progress-bar"
+  }
+}

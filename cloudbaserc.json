@@ -1,0 +1,13 @@
+{
+  "envId": "your-env-id",
+  "version": "2.0",
+  "framework": {
+    "name": "tradingagents-cn",
+    "plugins": {}
+  },
+  "service": {
+    "name": "tradingagents-cn",
+    "path": "/",
+    "type": "container"
+  }
+}

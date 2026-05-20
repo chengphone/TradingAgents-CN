@@ -1,0 +1,24 @@
+<view class="stock-input-wrap">
+  <view class="input-row">
+    <input
+      class="input stock-code-input"
+      type="number"
+      placeholder="输入6位股票代码"
+      maxlength="6"
+      value="{{code}}"
+      bindinput="onInput"
+    />
+    <picker
+      class="market-picker"
+      mode="selector"
+      range="{{markets}}"
+      value="{{marketIndex}}"
+      bindchange="onMarketChange"
+    >
+      <view class="picker-display">{{markets[marketIndex]}}</view>
+    </picker>
+  </view>
+  <view wx:if="{{stockName}}" class="stock-name-hint">
+    <text>{{stockName}}</text>
+  </view>
+</view>

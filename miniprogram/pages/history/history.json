@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "分析历史",
+  "usingComponents": {
+    "report-card": "/components/report-card/report-card"
+  }
+}

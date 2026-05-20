@@ -1,0 +1,25 @@
+<view class="config-form">
+  <!-- 提供商列表 -->
+  <view wx:for="{{configs}}" wx:key="provider" class="config-item">
+    <view class="config-header">
+      <text class="config-provider">{{item.provider}}</text>
+      <switch checked="{{item.enabled}}" data-index="{{index}}" bindchange="toggleEnabled" />
+    </view>
+    <block wx:if="{{item.enabled}}">
+      <view class="config-field">
+        <text class="field-label">模型名称</text>
+        <input class="input field-input" value="{{item.model_name}}" data-index="{{index}}" data-field="model_name" bindinput="onFieldChange" />
+      </view>
+      <view class="config-field">
+        <text class="field-label">API Key</text>
+        <input class="input field-input" type="password" value="{{item.api_key}}" data-index="{{index}}" data-field="api_key" bindinput="onFieldChange" />
+      </view>
+    </block>
+  </view>
+
+  <!-- 添加新配置 -->
+  <button class="btn btn-outline add-btn" bindtap="addConfig">+ 添加模型配置</button>
+
+  <!-- 保存按钮 -->
+  <button wx:if="{{modified}}" class="btn btn-primary" bindtap="saveConfigs">保存配置</button>
+</view>

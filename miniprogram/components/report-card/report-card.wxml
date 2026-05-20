@@ -1,0 +1,22 @@
+<view class="report-card card">
+  <view class="rc-header">
+    <view class="rc-left">
+      <text class="rc-symbol">{{data.symbol}}</text>
+      <text class="rc-name">{{data.stock_name || data.symbol}}</text>
+    </view>
+    <view class="rc-right">
+      <text class="tag tag-{{data.decision?.action === '买入' ? 'buy' : data.decision?.action === '卖出' ? 'sell' : 'hold'}}">
+        {{data.decision?.action || '未知'}}
+      </text>
+    </view>
+  </view>
+  <view class="rc-body">
+    <text class="rc-summary">{{data.summary || '暂无摘要'}}</text>
+  </view>
+  <view class="rc-footer">
+    <text class="rc-time">{{data.created_at}}</text>
+    <text class="rc-confidence" wx:if="{{data.decision?.confidence}}">
+      置信度 {{(data.decision.confidence * 100).toFixed(0)}}%
+    </text>
+  </view>
+</view>

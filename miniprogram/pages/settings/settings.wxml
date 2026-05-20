@@ -1,0 +1,30 @@
+<!-- 设置页 -->
+<view class="container">
+  <!-- 用户信息 -->
+  <view class="card user-card">
+    <view class="user-avatar">👤</view>
+    <view class="user-info">
+      <text class="user-name">用户 {{openid || '未登录'}}</text>
+      <text class="user-quota">今日已分析 {{quota.used}}/{{quota.total}} 次</text>
+    </view>
+  </view>
+
+  <!-- LLM 配置 -->
+  <view class="card">
+    <text class="card-title">模型配置</text>
+    <config-form />
+  </view>
+
+  <!-- 通用设置 -->
+  <view class="card">
+    <text class="card-title">关于</text>
+    <view class="about-item">
+      <text class="about-label">版本</text>
+      <text class="about-value">1.0.0</text>
+    </view>
+    <view class="about-item">
+      <text class="about-label">技术</text>
+      <text class="about-value">LangGraph 多智能体</text>
+    </view>
+  </view>
+</view>

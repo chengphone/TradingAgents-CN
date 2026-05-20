@@ -1,0 +1,7 @@
+.stock-input-wrap { width: 100%; }
+.input-row { display: flex; gap: 16rpx; }
+.stock-code-input { flex: 1; }
+.market-picker { flex: 0 0 120rpx; }
+.picker-display { background: var(--bg-input); border: 1rpx solid var(--border); border-radius: 12rpx; height: 80rpx; display: flex; align-items: center; justify-content: center; font-size: 28rpx; }
+.stock-name-hint { margin-top: 8rpx; padding-left: 8rpx; }
+.stock-name-hint text { font-size: 24rpx; color: var(--primary); }

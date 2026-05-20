@@ -1,0 +1,82 @@
+<!-- 首页 - 股票分析入口 -->
+<view class="container">
+  <!-- Header -->
+  <view class="header">
+    <text class="header-title">AI 股票分析</text>
+    <text class="header-sub">多智能体协作 · 深度研究报告</text>
+  </view>
+
+  <!-- 配额显示 -->
+  <view class="quota-bar">
+    <text class="quota-text">今日已分析 {{quota.used}}/{{quota.total}} 次</text>
+  </view>
+
+  <!-- 股票代码输入 -->
+  <view class="card">
+    <text class="card-title">股票代码</text>
+    <stock-input bind:change="onStockChange" />
+  </view>
+
+  <!-- 分析参数 -->
+  <view class="card">
+    <text class="card-title">分析深度</text>
+    <view class="depth-options">
+      <view
+        wx:for="{{depths}}"
+        wx:key="value"
+        class="depth-item {{currentDepth === item.value ? 'depth-active' : ''}}"
+        data-value="{{item.value}}"
+        bindtap="selectDepth"
+      >
+        <text class="depth-name">{{item.name}}</text>
+        <text class="depth-desc">{{item.desc}}</text>
+        <text class="depth-time">{{item.time}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <text class="card-title">分析模块</text>
+    <view class="analyst-options">
+      <view
+        wx:for="{{analysts}}"
+        wx:key="value"
+        class="analyst-item {{item.selected ? 'analyst-active' : ''}}"
+        data-value="{{item.value}}"
+        bindtap="toggleAnalyst"
+      >
+        <text class="analyst-icon">{{item.icon}}</text>
+        <text class="analyst-name">{{item.name}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 提交按钮 -->
+  <button
+    class="btn btn-primary submit-btn"
+    disabled="{{submitting || !stockCode}}"
+    bindtap="submitAnalysis"
+  >
+    {{submitting ? '提交中...' : '开始分析'}}
+  </button>
+
+  <!-- 提交中 loading -->
+  <view wx:if="{{submitting}}" class="loading">
+    <text class="loading-text">正在提交分析任务...</text>
+  </view>
+
+  <!-- 最近分析 -->
+  <view wx:if="{{recentTasks.length > 0}}" class="card">
+    <text class="card-title">最近分析</text>
+    <view wx:for="{{recentTasks}}" wx:key="task_id" class="recent-item" bindtap="goResult" data-id="{{item.task_id}}">
+      <view class="recent-left">
+        <text class="recent-code">{{item.symbol}}</text>
+        <text class="recent-name">{{item.stock_name || item.symbol}}</text>
+      </view>
+      <view class="recent-right">
+        <text class="tag tag-{{item.status === 'completed' ? 'buy' : ''}}">{{item.status === 'completed' ? '已完成' : item.status === 'running' ? '分析中' : '等待中'}}</text>
+        <text class="recent-time">{{item.created_at}}</text>
+      </view>
+    </view>
+  </view>
+</view>

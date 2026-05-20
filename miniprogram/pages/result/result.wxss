@@ -1,0 +1,30 @@
+/* 结果页样式 */
+.stock-header { text-align: center; padding: 24rpx 0; }
+.stock-code { font-size: 44rpx; font-weight: 700; display: block; }
+.stock-name { font-size: 28rpx; color: #888; display: block; margin-top: 8rpx; }
+
+/* 决策卡片 */
+.decision-card { border-radius: 16rpx; padding: 32rpx; margin-bottom: 24rpx; text-align: center; }
+.decision-buy { background: linear-gradient(135deg, rgba(0,212,170,0.2), rgba(0,212,170,0.05)); border: 2rpx solid #00d4aa; }
+.decision-sell { background: linear-gradient(135deg, rgba(255,71,87,0.2), rgba(255,71,87,0.05)); border: 2rpx solid #ff4757; }
+.decision-hold { background: linear-gradient(135deg, rgba(255,165,2,0.2), rgba(255,165,2,0.05)); border: 2rpx solid #ffa502; }
+.decision-header { display: flex; justify-content: center; align-items: baseline; gap: 24rpx; }
+.decision-action { font-size: 60rpx; font-weight: 700; }
+.decision-confidence { font-size: 28rpx; opacity: 0.8; }
+.decision-price { margin-top: 12rpx; font-size: 30rpx; }
+
+.summary-text { font-size: 28rpx; line-height: 1.8; color: var(--text-primary); }
+.recommendation-text { font-size: 28rpx; line-height: 1.8; color: var(--text-primary); }
+
+/* 报告模块 */
+.module-item { display: flex; align-items: center; padding: 20rpx 0; border-bottom: 1rpx solid var(--border); }
+.module-item:last-child { border-bottom: none; }
+.module-icon { font-size: 36rpx; margin-right: 16rpx; }
+.module-info { flex: 1; }
+.module-name { font-size: 28rpx; display: block; }
+.module-preview { font-size: 24rpx; color: #888; display: block; margin-top: 4rpx; }
+.module-arrow { font-size: 28rpx; color: #666; }
+
+.polling-hint { text-align: center; padding: 24rpx; }
+.polling-hint text { font-size: 24rpx; color: #666; }
+.error-detail { font-size: 26rpx; color: #ff4757; margin-top: 16rpx; text-align: center; }

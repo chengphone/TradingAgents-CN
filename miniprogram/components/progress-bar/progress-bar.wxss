@@ -1,0 +1,19 @@
+.progress-wrap { padding: 24rpx 0; }
+.progress-pct { font-size: 56rpx; font-weight: 700; color: var(--primary); text-align: center; margin-bottom: 16rpx; }
+.progress-track { background: var(--bg-input); border-radius: 8rpx; height: 12rpx; overflow: hidden; margin-bottom: 16rpx; }
+.progress-fill { background: linear-gradient(90deg, #00d4aa, #00b894); height: 100%; border-radius: 8rpx; transition: width 0.5s ease; }
+.progress-message { text-align: center; font-size: 28rpx; margin-bottom: 12rpx; }
+.progress-time { text-align: center; font-size: 24rpx; color: #888; margin-bottom: 16rpx; }
+
+.step-list { margin-top: 16rpx; }
+.step-item { display: flex; align-items: flex-start; padding: 8rpx 0; }
+.step-dot { width: 12rpx; height: 12rpx; border-radius: 50%; margin-top: 10rpx; margin-right: 16rpx; flex-shrink: 0; background: var(--border); }
+.step-completed .step-dot { background: var(--primary); }
+.step-current .step-dot { background: var(--primary); box-shadow: 0 0 8rpx var(--primary); }
+.step-failed .step-dot { background: var(--danger); }
+.step-info { flex: 1; display: flex; justify-content: space-between; }
+.step-name { font-size: 24rpx; }
+.step-completed .step-name { color: var(--primary); }
+.step-current .step-name { color: var(--primary); font-weight: 600; }
+.step-pending .step-name { color: #666; }
+.step-status { font-size: 20rpx; color: #888; }

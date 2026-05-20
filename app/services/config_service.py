@@ -10,7 +10,6 @@ from collections import defaultdict
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from app.utils.timezone import now_tz
-from bson import ObjectId
 
 from app.core.database import get_mongo_db
 from app.core.unified_config import unified_config
@@ -2946,7 +2945,7 @@ class ConfigService:
             provider.created_at = now_tz()
             provider.updated_at = now_tz()
 
-            # 修复：删除 _id 字段，让 MongoDB 自动生成 ObjectId
+            # 删除 _id 字段，让 CloudBase 自动生成
             provider_data = provider.model_dump(by_alias=True, exclude_unset=True)
             if "_id" in provider_data:
                 del provider_data["_id"]
@@ -2965,27 +2964,10 @@ class ConfigService:
 
             update_data["updated_at"] = now_tz()
 
-            # 兼容处理：尝试 ObjectId 和字符串两种类型
-            # 原因：历史数据可能混用了 ObjectId 和字符串作为 _id
-            try:
-                # 先尝试作为 ObjectId 查询
-                result = await providers_collection.update_one(
-                    {"_id": ObjectId(provider_id)},
-                    {"$set": update_data}
-                )
-
-                # 如果没有匹配到，再尝试作为字符串查询
-                if result.matched_count == 0:
-                    result = await providers_collection.update_one(
-                        {"_id": provider_id},
-                        {"$set": update_data}
-                    )
-            except Exception:
-                # 如果 ObjectId 转换失败，直接用字符串查询
-                result = await providers_collection.update_one(
-                    {"_id": provider_id},
-                    {"$set": update_data}
-                )
+            result = await providers_collection.update_one(
+                {"_id": provider_id},
+                {"$set": update_data}
+            )
 
             # 修复：matched_count > 0 表示找到了记录（即使没有修改）
             # modified_count > 0 只有在实际修改了字段时才为真
@@ -3000,48 +2982,15 @@ class ConfigService:
     async def delete_llm_provider(self, provider_id: str) -> bool:
         """删除大模型厂家"""
         try:
-            print(f"🗑️ 删除厂家 - provider_id: {provider_id}")
-            print(f"🔍 ObjectId类型: {type(ObjectId(provider_id))}")
-
             db = await self._get_db()
             providers_collection = db.llm_providers
-            print(f"📊 数据库: {db.name}, 集合: {providers_collection.name}")
 
-            # 先列出所有厂家的ID，看看格式
-            all_providers = await providers_collection.find({}, {"_id": 1, "display_name": 1}).to_list(length=None)
-            print(f"📋 数据库中所有厂家ID:")
-            for p in all_providers:
-                print(f"   - {p['_id']} ({type(p['_id'])}) - {p.get('display_name')}")
-                if str(p['_id']) == provider_id:
-                    print(f"   ✅ 找到匹配的ID!")
-
-            # 尝试不同的查找方式
-            print(f"🔍 尝试用ObjectId查找...")
-            existing1 = await providers_collection.find_one({"_id": ObjectId(provider_id)})
-
-            print(f"🔍 尝试用字符串查找...")
-            existing2 = await providers_collection.find_one({"_id": provider_id})
-
-            print(f"🔍 ObjectId查找结果: {existing1 is not None}")
-            print(f"🔍 字符串查找结果: {existing2 is not None}")
-
-            existing = existing1 or existing2
+            existing = await providers_collection.find_one({"_id": provider_id})
             if not existing:
-                print(f"❌ 两种方式都找不到厂家: {provider_id}")
                 return False
 
-            print(f"✅ 找到厂家: {existing.get('display_name')}")
-
-            # 使用找到的方式进行删除
-            if existing1:
-                result = await providers_collection.delete_one({"_id": ObjectId(provider_id)})
-            else:
-                result = await providers_collection.delete_one({"_id": provider_id})
-
-            success = result.deleted_count > 0
-
-            print(f"🗑️ 删除结果: {success}, deleted_count: {result.deleted_count}")
-            return success
+            result = await providers_collection.delete_one({"_id": provider_id})
+            return result.deleted_count > 0
 
         except Exception as e:
             print(f"❌ 删除厂家失败: {e}")
@@ -3055,27 +3004,10 @@ class ConfigService:
             db = await self._get_db()
             providers_collection = db.llm_providers
 
-            # 兼容处理：尝试 ObjectId 和字符串两种类型
-            try:
-                # 先尝试作为 ObjectId 查询
-                result = await providers_collection.update_one(
-                    {"_id": ObjectId(provider_id)},
-                    {"$set": {"is_active": is_active, "updated_at": now_tz()}}
-                )
-
-                # 如果没有匹配到，再尝试作为字符串查询
-                if result.matched_count == 0:
-                    result = await providers_collection.update_one(
-                        {"_id": provider_id},
-                        {"$set": {"is_active": is_active, "updated_at": now_tz()}}
-                    )
-            except Exception:
-                # 如果 ObjectId 转换失败，直接用字符串查询
-                result = await providers_collection.update_one(
-                    {"_id": provider_id},
-                    {"$set": {"is_active": is_active, "updated_at": now_tz()}}
-                )
-
+            result = await providers_collection.update_one(
+                {"_id": provider_id},
+                {"$set": {"is_active": is_active, "updated_at": now_tz()}}
+            )
             return result.matched_count > 0
         except Exception as e:
             print(f"切换厂家状态失败: {e}")
@@ -3148,7 +3080,7 @@ class ConfigService:
                 }
 
                 provider = LLMProvider(**provider_data)
-                # 修复：删除 _id 字段，让 MongoDB 自动生成 ObjectId
+                # 删除 _id 字段，让 CloudBase 自动生成
                 insert_data = provider.model_dump(by_alias=True, exclude_unset=True)
                 if "_id" in insert_data:
                     del insert_data["_id"]
@@ -3318,18 +3250,7 @@ class ConfigService:
             db = await self._get_db()
             providers_collection = db.llm_providers
 
-            # 兼容处理：尝试 ObjectId 和字符串两种类型
-            from bson import ObjectId
-            provider_data = None
-            try:
-                # 先尝试作为 ObjectId 查询
-                provider_data = await providers_collection.find_one({"_id": ObjectId(provider_id)})
-            except Exception:
-                pass
-
-            # 如果没有找到，再尝试作为字符串查询
-            if not provider_data:
-                provider_data = await providers_collection.find_one({"_id": provider_id})
+            provider_data = await providers_collection.find_one({"_id": provider_id})
 
             if not provider_data:
                 return {
@@ -3973,16 +3894,7 @@ class ConfigService:
             db = await self._get_db()
             providers_collection = db.llm_providers
 
-            # 兼容处理：尝试 ObjectId 和字符串两种类型
-            from bson import ObjectId
-            provider_data = None
-            try:
-                provider_data = await providers_collection.find_one({"_id": ObjectId(provider_id)})
-            except Exception:
-                pass
-
-            if not provider_data:
-                provider_data = await providers_collection.find_one({"_id": provider_id})
+            provider_data = await providers_collection.find_one({"_id": provider_id})
 
             if not provider_data:
                 return {

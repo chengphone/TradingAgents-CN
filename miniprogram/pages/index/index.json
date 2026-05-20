@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "TradingAgents-CN",
+  "usingComponents": {
+    "stock-input": "/components/stock-input/stock-input"
+  }
+}

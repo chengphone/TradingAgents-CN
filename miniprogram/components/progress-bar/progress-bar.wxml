@@ -1,0 +1,35 @@
+<view class="progress-wrap">
+  <!-- 进度数字 -->
+  <view class="progress-pct">{{progress}}%</view>
+
+  <!-- 进度条 -->
+  <view class="progress-track">
+    <view class="progress-fill" style="width: {{progress}}%;"></view>
+  </view>
+
+  <!-- 当前步骤 -->
+  <view class="progress-message">
+    <text>{{currentStep || '准备中...'}}</text>
+  </view>
+
+  <!-- 时间估算 -->
+  <view class="progress-time" wx:if="{{elapsed > 0}}">
+    <text>已耗时: {{formatTime(elapsed)}}</text>
+    <text wx:if="{{remaining > 0}}"> | 预估剩余: {{formatTime(remaining)}}</text>
+  </view>
+
+  <!-- 步骤列表 -->
+  <view wx:if="{{steps && steps.length > 0}}" class="step-list">
+    <view
+      wx:for="{{steps}}"
+      wx:key="name"
+      class="step-item step-{{item.status}}"
+    >
+      <view class="step-dot"></view>
+      <view class="step-info">
+        <text class="step-name">{{item.name}}</text>
+        <text class="step-status">{{item.status === 'completed' ? '✓' : item.status === 'current' ? '●' : '○'}}</text>
+      </view>
+    </view>
+  </view>
+</view>

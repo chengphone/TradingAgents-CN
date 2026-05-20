@@ -1,0 +1,54 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/result/result",
+    "pages/history/history",
+    "pages/detail/detail",
+    "pages/settings/settings"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#1a1a2e",
+    "navigationBarTitleText": "TradingAgents-CN",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0f0f23",
+    "backgroundTextStyle": "light"
+  },
+  "tabBar": {
+    "color": "#888",
+    "selectedColor": "#00d4aa",
+    "backgroundColor": "#1a1a2e",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "分析",
+        "iconPath": "images/analysis.png",
+        "selectedIconPath": "images/analysis-active.png"
+      },
+      {
+        "pagePath": "pages/history/history",
+        "text": "历史",
+        "iconPath": "images/history.png",
+        "selectedIconPath": "images/history-active.png"
+      },
+      {
+        "pagePath": "pages/settings/settings",
+        "text": "我的",
+        "iconPath": "images/settings.png",
+        "selectedIconPath": "images/settings-active.png"
+      }
+    ]
+  },
+  "usingComponents": {
+    "stock-input": "/components/stock-input/stock-input",
+    "report-card": "/components/report-card/report-card",
+    "progress-bar": "/components/progress-bar/progress-bar",
+    "config-form": "/components/config-form/config-form"
+  },
+  "networkTimeout": {
+    "request": 60000,
+    "uploadFile": 120000
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

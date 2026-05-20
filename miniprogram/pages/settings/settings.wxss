@@ -1,0 +1,8 @@
+.user-card { display: flex; align-items: center; gap: 24rpx; }
+.user-avatar { font-size: 64rpx; }
+.user-name { font-size: 32rpx; font-weight: 600; display: block; }
+.user-quota { font-size: 26rpx; color: #888; display: block; margin-top: 4rpx; }
+.about-item { display: flex; justify-content: space-between; padding: 16rpx 0; border-bottom: 1rpx solid var(--border); }
+.about-item:last-child { border-bottom: none; }
+.about-label { font-size: 28rpx; }
+.about-value { font-size: 28rpx; color: #888; }

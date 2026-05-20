@@ -1,0 +1,6 @@
+.search-bar { display: flex; gap: 16rpx; margin-bottom: 24rpx; }
+.search-input { flex: 1; }
+.search-btn { flex: 0 0 120rpx; height: 80rpx; }
+
+.load-more { text-align: center; padding: 24rpx; }
+.load-more text { font-size: 26rpx; color: var(--primary); }

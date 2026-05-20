@@ -1,0 +1,78 @@
+<!-- 分析结果页 -->
+<view class="container">
+  <!-- 股票信息 -->
+  <view class="stock-header">
+    <text class="stock-code">{{stockCode}}</text>
+    <text class="stock-name">{{stockName || stockCode}}</text>
+  </view>
+
+  <!-- 进度条（分析中） -->
+  <view wx:if="{{status === 'pending' || status === 'running' || status === 'processing'}}" class="card">
+    <progress-bar
+      progress="{{progress}}"
+      currentStep="{{current_step_name || message}}"
+      elapsed="{{elapsed_time}}"
+      remaining="{{remaining_time}}"
+      steps="{{steps}}"
+    />
+  </view>
+
+  <!-- 分析完成 -->
+  <view wx:if="{{status === 'completed'}}">
+    <!-- 决策卡片 -->
+    <view class="decision-card {{decision.action === '买入' ? 'decision-buy' : decision.action === '卖出' ? 'decision-sell' : 'decision-hold'}}">
+      <view class="decision-header">
+        <text class="decision-action">{{decision.action || '持有'}}</text>
+        <text class="decision-confidence">置信度 {{(decision.confidence * 100).toFixed(0)}}%</text>
+      </view>
+      <view wx:if="{{decision.target_price}}" class="decision-price">
+        <text>目标价: ¥{{decision.target_price}}</text>
+      </view>
+    </view>
+
+    <!-- 摘要 -->
+    <view class="card">
+      <text class="card-title">分析摘要</text>
+      <text class="summary-text">{{summary || '暂无摘要'}}</text>
+    </view>
+
+    <!-- 建议 -->
+    <view class="card" wx:if="{{recommendation}}">
+      <text class="card-title">投资建议</text>
+      <text class="recommendation-text">{{recommendation}}</text>
+    </view>
+
+    <!-- 报告模块列表 -->
+    <view class="card" wx:if="{{reportModules.length > 0}}">
+      <text class="card-title">详细报告</text>
+      <view
+        wx:for="{{reportModules}}"
+        wx:key="name"
+        class="module-item"
+        bindtap="goModule"
+        data-module="{{item.key}}"
+      >
+        <text class="module-icon">{{item.icon}}</text>
+        <view class="module-info">
+          <text class="module-name">{{item.name}}</text>
+          <text class="module-preview">{{item.preview}}</text>
+        </view>
+        <text class="module-arrow">></text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 分析失败 -->
+  <view wx:if="{{status === 'failed'}}" class="card">
+    <view class="empty">
+      <text class="empty-icon">❌</text>
+      <text class="empty-text">分析失败</text>
+      <text class="error-detail">{{errorMessage || '请稍后重试'}}</text>
+    </view>
+  </view>
+
+  <!-- 轮询提示 -->
+  <view wx:if="{{status === 'pending' || status === 'running' || status === 'processing'}}" class="polling-hint">
+    <text>每3秒自动刷新进度...</text>
+  </view>
+</view>
