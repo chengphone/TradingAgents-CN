@@ -38,6 +38,8 @@ class TestAuthRoutes:
         assert data.get("success") is True
         assert "data" in data
         assert "openid" in data["data"]
+        assert "daily_used" in data["data"]
+        assert isinstance(data["data"]["daily_used"], int)
 
     def test_me_with_expired_token(self, auth_client, expired_token):
         """测试过期 token 访问 /api/auth/me"""

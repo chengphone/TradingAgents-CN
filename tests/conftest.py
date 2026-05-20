@@ -4,6 +4,16 @@
 import os
 import sys
 
+# Set test environment variables BEFORE any other imports
+# This ensures they override .env file values
+os.environ["DEBUG"] = "true"
+os.environ["JWT_SECRET"] = "test-jwt-secret-for-testing-only-32chars"
+os.environ["WECHAT_APPID"] = "test_appid"
+os.environ["WECHAT_SECRET"] = "test_secret"
+os.environ["WECHAT_DAILY_QUOTA"] = "10"
+os.environ["CLOUDBASE_ENV_ID"] = "test-env"
+os.environ["CLOUDBASE_API_TOKEN"] = "test-token"
+
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
@@ -20,13 +30,8 @@ from fastapi.testclient import TestClient as _TestClient
 
 @pytest.fixture(autouse=True, scope="session")
 def setup_test_env():
-    os.environ.setdefault("DEBUG", "true")
-    os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-testing-only-32chars")
-    os.environ.setdefault("WECHAT_APPID", "test_appid")
-    os.environ.setdefault("WECHAT_SECRET", "test_secret")
-    os.environ.setdefault("WECHAT_DAILY_QUOTA", "10")
-    os.environ.setdefault("CLOUDBASE_ENV_ID", "test-env")
-    os.environ.setdefault("CLOUDBASE_API_TOKEN", "test-token")
+    # Environment variables already set at module load time
+    pass
 
 
 class MockCloudBaseCollection:
@@ -102,6 +107,23 @@ class MockCloudBaseCollection:
                     return False
             elif key == "$and":
                 if not all(self._match_query(doc, cond) for cond in value):
+                    return False
+            elif isinstance(value, dict):
+                # Handle operators like $in, $lt, $gt, etc.
+                current = doc.get(key)
+                if "$in" in value and current not in value["$in"]:
+                    return False
+                if "$nin" in value and current in value["$nin"]:
+                    return False
+                if "$lt" in value and not (current is not None and current < value["$lt"]):
+                    return False
+                if "$lte" in value and not (current is not None and current <= value["$lte"]):
+                    return False
+                if "$gt" in value and not (current is not None and current > value["$gt"]):
+                    return False
+                if "$gte" in value and not (current is not None and current >= value["$gte"]):
+                    return False
+                if "$ne" in value and current == value["$ne"]:
                     return False
             elif key not in doc:
                 return False

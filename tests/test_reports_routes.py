@@ -138,3 +138,39 @@ class TestReportsRoutes:
 
         response = reports_client.get("/api/reports/report_001/content/nonexistent_module", headers=auth_headers)
         assert response.status_code == 404
+
+    def test_list_pagination_second_page(self, reports_client, auth_headers, override_cloudbase):
+        """测试报告列表分页第二页"""
+        db = override_cloudbase
+
+        # Insert 25 reports for user A
+        for i in range(25):
+            asyncio.get_event_loop().run_until_complete(
+                db["analysis_reports"].insert_one({
+                    "analysis_id": f"report_{i:03d}",
+                    "openid": "openid_a",
+                    "stock_symbol": "600519",
+                    "created_at": f"2026-05-20T10:{i:02d}:00Z",
+                })
+            )
+
+        # Get first page
+        response = reports_client.get("/api/reports/list?page=1&page_size=10", headers=auth_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["total"] == 25
+        assert len(data["data"]["reports"]) == 10
+
+        # Get second page
+        response = reports_client.get("/api/reports/list?page=2&page_size=10", headers=auth_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["total"] == 25
+        assert len(data["data"]["reports"]) == 10
+
+        # Get last page
+        response = reports_client.get("/api/reports/list?page=3&page_size=10", headers=auth_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["total"] == 25
+        assert len(data["data"]["reports"]) == 5

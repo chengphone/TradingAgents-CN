@@ -55,8 +55,10 @@ def validate_production_secrets() -> None:
                 "请在 .env 中配置微信小程序相关参数"
             )
 
-        # CloudBase 配置校验
-        if not os.getenv("CLOUDBASE_ENV_ID") or not os.getenv("CLOUDBASE_API_TOKEN"):
+        # CloudBase 配置校验（兼容 CLOUDBASE_API_TOKEN 和 CLOUDBASE_API_KEY）
+        if not os.getenv("CLOUDBASE_ENV_ID") or not (
+            os.getenv("CLOUDBASE_API_TOKEN") or os.getenv("CLOUDBASE_API_KEY")
+        ):
             raise RuntimeError(
                 "生产环境必须设置 CloudBase 配置，"
                 "请在 .env 中配置 CLOUDBASE_ENV_ID 和 CLOUDBASE_API_TOKEN"

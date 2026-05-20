@@ -157,12 +157,64 @@ class TestCloudBaseCollection:
         await col.insert_one({"type": "a", "value": 1})
         await col.insert_one({"type": "a", "value": 2})
         await col.insert_one({"type": "b", "value": 3})
-        
+
         count = await col.count_documents({"type": "a"})
         assert count == 2
-        
+
         count = await col.count_documents({})
         assert count == 3
+
+    @pytest.mark.asyncio
+    async def test_query_in_operator(self, mock_db):
+        """测试 $in 操作符"""
+        col = mock_db["test_collection"]
+        await col.insert_one({"id": "1", "status": "pending"})
+        await col.insert_one({"id": "2", "status": "completed"})
+        await col.insert_one({"id": "3", "status": "failed"})
+
+        results = []
+        cursor = col.find({"status": {"$in": ["pending", "completed"]}})
+        async for doc in cursor:
+            results.append(doc)
+
+        assert len(results) == 2
+
+    @pytest.mark.asyncio
+    async def test_query_comparison_operators(self, mock_db):
+        """测试 $lt, $gt, $lte, $gte 比较操作符"""
+        col = mock_db["test_collection"]
+        for i in range(10):
+            await col.insert_one({"idx": i, "value": i * 10})
+
+        # $gt
+        cursor = col.find({"value": {"$gt": 50}})
+        results = await cursor.to_list()
+        assert len(results) == 4  # 60, 70, 80, 90
+
+        # $lt
+        cursor = col.find({"value": {"$lt": 30}})
+        results = await cursor.to_list()
+        assert len(results) == 3  # 0, 10, 20
+
+        # $gte
+        cursor = col.find({"value": {"$gte": 50}})
+        results = await cursor.to_list()
+        assert len(results) == 5  # 50, 60, 70, 80, 90
+
+        # $lte
+        cursor = col.find({"value": {"$lte": 30}})
+        results = await cursor.to_list()
+        assert len(results) == 4  # 0, 10, 20, 30
+
+    @pytest.mark.asyncio
+    async def test_query_ne_operator(self, mock_db):
+        """测试 $ne 操作符"""
+        col = mock_db["test_collection"]
+        await col.insert_one({"id": "1", "status": "pending"})
+        await col.insert_one({"id": "2", "status": "completed"})
+
+        doc = await col.find_one({"status": {"$ne": "pending"}})
+        assert doc["status"] == "completed"
 
 
 class TestCloudBaseCursor:
